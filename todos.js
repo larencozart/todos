@@ -19,9 +19,30 @@ app.set("view engine", "pug");
 app.use(morgan("common"));
 app.use(express.static("public"));
 
+
+const sortTodoLists = lists => {
+  return lists.slice().sort((todoListA, todoListB) => {
+    let isDoneA = todoListA.isDone();
+    let isDoneB = todoListB.isDone();
+
+    if (!isDoneA && isDoneB) {
+      return -1;
+    } else if (isDoneA && !isDoneB) {
+      return 1;
+    } else {
+      let titleA = todoListA.title.toLowerCase();
+      let titleB = todoListB.title.toLowerCase();
+
+      if (titleA < titleB) return -1;
+      else if (titleA > titleB) return 1;
+      else return 0;
+    }
+  });
+};
+
 app.get("/", (req, res) => {
   res.render("lists", {
-    todoLists
+    todoLists: sortTodoLists(todoLists)
   });
 });
 
