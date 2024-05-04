@@ -9,6 +9,7 @@ const morgan = require("morgan");
 const flash = require("express-flash");
 const session = require("express-session");
 const TodoList = require("./lib/todolist.js");
+const Todo = require("./lib/todo.js");
 const {body, validationResult} = require("express-validator");
 
 const app = express();
@@ -23,18 +24,19 @@ app.set("view engine", "pug");
 app.use(morgan("common"));
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: false }));
-app.use(flash());
-app.use((req, res, next) => {
-  res.locals.flash = req.session.flash;
-  delete req.session.flash;
-  next();
-});
 app.use(session({
   name: "launch-school-todos-session-id",
   resave: false,
   saveUninitialized: true,
   secret: "this is not very secure"
 }));
+app.use(flash());
+app.use((req, res, next) => {
+  res.locals.flash = req.session.flash;
+  delete req.session.flash;
+  next();
+});
+
 
 
 const sortTodoLists = lists => {
