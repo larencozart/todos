@@ -139,9 +139,23 @@ app.post("/lists/:todoListId/todos/:todoId/destroy", (req, res, next) => {
   }
 });
 
-app.post("", (req, res, next) => {
+// pull out todoList finder method
+app.post("/lists/:todoListId/complete_all", (req, res, next) => {
+  const todoListId = req.params.todoListId;
+  const todoList = todoLists.find(todoList => todoList.id === Number(todoListId));
 
+  if (!todoList) {
+    next(new Error("Not found"));
+  } else {
+    // make change
+    todoList.markAllDone();
+    // flash msg
+    req.flash("success", `All todos in ${todoList.title} marked as complete`);
+    // redirect
+    res.redirect(`/lists/${todoListId}`);
+  }
 });
+
 
 // Error handler - If an error is caught, this gets called
 app.use((err, req, res, _next) => {
