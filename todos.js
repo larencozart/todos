@@ -8,8 +8,9 @@ const express = require("express");
 const morgan = require("morgan");
 const flash = require("express-flash");
 const session = require("express-session");
-const TodoList = require("./lib/todolist.js");
-const Todo = require("./lib/todo.js");
+const TodoList = require("./lib/todolist");
+const Todo = require("./lib/todo");
+const {sortTodoLists, sortTodos} = require("./lib/sort");
 const {body, validationResult} = require("express-validator");
 
 const app = express();
@@ -38,27 +39,6 @@ app.use((req, res, next) => {
 });
 
 
-
-const sortTodoLists = lists => {
-  return lists.slice().sort((todoListA, todoListB) => {
-    let isDoneA = todoListA.isDone();
-    let isDoneB = todoListB.isDone();
-
-    if (!isDoneA && isDoneB) {
-      return -1;
-    } else if (isDoneA && !isDoneB) {
-      return 1;
-    } else {
-      let titleA = todoListA.title.toLowerCase();
-      let titleB = todoListB.title.toLowerCase();
-
-      if (titleA < titleB) return -1;
-      else if (titleA > titleB) return 1;
-      else return 0;
-    }
-  });
-};
-
 app.get("/", (req, res) => {
   res.redirect("/lists");
 });
@@ -72,21 +52,6 @@ app.get("/lists", (req, res) => {
 app.get("/lists/new", (req, res) => {
   res.render("new-list");
 });
-
-// needs validation
-
-const validateTitle = (title) => {
-  return body(title)
-    .trim()
-    .isLength({ min: 1 })
-    .withMessage(`The list title is required.`)
-    .bail()
-    .isLength({ max: 100 })
-    .withMessage(`The list title is too long. Maximum length is 100 characters.`)
-    .isAlpha()
-    .withMessage(`The list title contains invalid characters. Titles must be alphabetic.`);
-};
-
 
 app.post("/lists",
   [
@@ -118,6 +83,71 @@ app.post("/lists",
   }
 );
 
+// pull out todolist finder function, LS uses loadTodoList
+app.get("/lists/:todoListId", (req, res) => {
+  const id = req.params.todoListId
+  const todoList = todoLists.find(todoList => todoList.id === Number(id));
+
+  if (!todoList) {
+    next(new Error("Page Not Found."));
+  } else {
+    res.render("list", {
+      todoList: todoList,
+      todos: sortTodos(todoList)
+    });
+  }
+  
+});
+
+// pull out function to find todolist and todo... LS does "loadTodo"
+app.post("/lists/:todoListId/todos/:todoId/toggle", (req, res, next) => {
+  const { todoListId, todoId } = { ...req.params };
+  const todoList = todoLists.find(todoList => todoList.id === Number(todoListId));
+  const todo = todoList.findById(Number(todoId));
+
+  if (!todo) {
+    next(new Error("Not found"));
+  } else {
+    if (todo.isDone()) {
+      todo.markUndone(); 
+      req.flash("success", `${todo.title} has been marked as not complete`);
+    } else {
+      todo.markDone();
+      req.flash("success", `${todo.title} has been marked as complete`);
+    }
+
+    res.redirect(`/lists/${todoListId}`);
+  }
+});
+
+app.post("/lists/:todoListId/todos/:todoId/destroy", (req, res, next) => {
+  const { todoListId, todoId } = { ...req.params };
+  const todoList = todoLists.find(todoList => todoList.id === Number(todoListId));
+
+  if (!todoList) {
+    next(new Error("Not found"));
+  } else {
+    const todo = todoList.findById(Number(todoId));
+
+    if (!todo) {
+      next(new Error("Not found"));
+    } else {
+      todoList.removeAt(todoList.findIndexOf(todo));
+      req.flash("success", `${todo.title} deleted from list`);
+      res.redirect(`/lists/${todoListId}`);
+    }
+  }
+});
+
+app.post("", (req, res, next) => {
+
+});
+
+// Error handler - If an error is caught, this gets called
+app.use((err, req, res, _next) => {
+  console.log(err.message);
+  res.status(404).send(err.message);
+});
 
 app.listen(port, host, () => {
   console.log(`Todos listening on ${port} ${host}...`);
