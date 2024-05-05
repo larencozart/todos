@@ -188,6 +188,75 @@ app.post("/lists/:todoListId/todos",
   }
 );
 
+// pull out todoList finder method
+app.get("/lists/:todoListId/edit", (req, res, next) => {
+  const todoListId = req.params.todoListId;
+  const todoList = todoLists.find(todoList => todoList.id === Number(todoListId));
+
+  if (!todoList) {
+    next(new Error("Not found"));
+  } else {
+    res.render("edit-list", {
+      todoList,
+    });
+  }
+});
+
+app.post("/lists/:todoListId/destroy", (req, res, next) => {
+  const todoListId = req.params.todoListId;
+  const todoList = todoLists.find(todoList => todoList.id === Number(todoListId));
+
+  if (!todoList) {
+    next(new Error("Not found"));
+  } else {
+    const todoListIndex = todoLists.findIndex(list => list.id === Number(todoListId));
+    todoLists.splice(todoListIndex, 1);
+    req.flash("success", "Todo list deleted");
+    res.redirect("/lists");
+  }
+});
+
+app.post("/lists/:todoListId/edit", 
+  [
+    body("todoListTitle") 
+      .trim()
+      .isLength({ min: 1 })
+      .withMessage("The list title is required.")
+      .isLength({ max: 100 })
+      .withMessage("List title must be between 1 and 100 characters.")
+      .custom(title => {
+        let duplicate = todoLists.find(list => list.title === title);
+        return duplicate === undefined;
+      })
+      .withMessage("List title must be unique."),
+  ],
+  (req, res, next) => {
+    const todoListId = req.params.todoListId;
+    const todoList = todoLists.find(todoList => todoList.id === Number(todoListId));
+
+    if (!todoList) {
+      next(new Error("Not found"));
+    } else {
+      let errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        errors.array().forEach(message => req.flash("error", message.msg));
+        res.render("edit-list", {
+          flash: req.flash(),
+          todoList: todoList,
+          todoListTitle: req.body.todoListTitle // this is wrong too i think..
+        });
+      } else {
+        const newTitle = req.body.todoListTitle
+        todoList.setTitle(newTitle);
+        req.flash("success", "Todo list updated");
+        res.redirect(`/lists/${todoListId}`);
+      }
+    }
+});
+
+
+
+
 
 // Error handler - If an error is caught, this gets called
 app.use((err, req, res, _next) => {
